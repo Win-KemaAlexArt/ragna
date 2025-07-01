@@ -71,7 +71,11 @@ class SessionMiddleware(BaseHTTPMiddleware):
             return await self._login_dispatch(request, call_next)
         if self._api and request.url.path.startswith("/api"):
             return self._unauthorized("Missing authorization header")
-        if self._ui and request.url.path.startswith("/ui"):
+        if (
+            self._ui
+            and request.url.path.startswith("/ui")
+            or request.url.path.startswith("/htmx")
+        ):
             return redirect("/login")
 
         # Either an unknown route or something on the default router. In any case,

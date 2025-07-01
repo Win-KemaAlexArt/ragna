@@ -23,7 +23,7 @@ __all__ = [
 from ._ai21labs import Jurassic2Ultra
 from ._anthropic import ClaudeHaiku, ClaudeOpus, ClaudeSonnet
 from ._cohere import Command, CommandLight
-from ._demo import RagnaDemoAssistant
+from ._demo import DemoStreamingAssistant, RagnaDemoAssistant
 from ._google import GeminiPro, GeminiUltra
 from ._llamafile import LlamafileAssistant
 from ._ollama import (

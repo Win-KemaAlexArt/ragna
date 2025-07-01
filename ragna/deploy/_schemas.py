@@ -16,6 +16,7 @@ from pydantic import (
 import ragna.core
 
 
+# FIXME: should have an ID
 class User(BaseModel):
     name: str
     data: dict[str, Any] = Field(default_factory=dict)

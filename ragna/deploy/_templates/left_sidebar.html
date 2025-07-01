@@ -1,0 +1,62 @@
+<div class="sidebar border-end p-3 d-flex flex-column">
+
+<!-- 1. Top Logo Area -->
+<div class="mb-4">
+  <a href="/" class="d-flex align-items-center text-decoration-none" title="Homepage">
+    <!-- Using a placeholder SVG for a clean, scalable logo -->
+    <svg xmlns="http://www.w3.org/2000/svg" fill="var(--bs-primary)" class="img-fluid" viewBox="0 0 200 50" role="img"><title>Company Logo</title><text x="10" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold">YOUR LOGO</text></svg>
+  </a>
+  <button hx-get="/htmx/chat/new" hx-target="#new-chat-form" class="btn btn-primary w-100 mt-3" data-bs-toggle="modal" data-bs-target="#newChatModal">New Chat</button>
+</div>
+
+<!-- 2. Middle Scrollable Nav Area -->
+
+<div class="sidebar-scrollable-area flex-grow-1">
+<!-- Use a list-group, which is better for lists of actions -->
+    {% with %}
+    {% set chat_selection = left_sidebar.chat_selection %}
+    {% include "chat_selection.html" %}
+    {% endwith %}
+</div>
+
+<!-- 3. Bottom Static Text Area -->
+<div class="mt-4">
+  <small class="text-muted d-block">© 2024 Your Company</small>
+  <small class="text-muted d-block">Version 1.2.3</small>
+</div>
+
+</div>
+
+<div class="modal fade" data-bs-backdrop="static" id="newChatModal" tabindex="-1" aria-labelledby="newChatModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="newChatModalLabel">Start a new chat</h1>
+      </div>
+        <div class="modal-body">
+            <form id="new-chat-form" hx-post="/htmx/chat" hx-swap="none">
+
+
+                {% with %}
+        {% set new_chat_form = main_area.new_chat_form %}
+                {% if new_chat_form is not none %}
+        {% include "new_chat_form.html" %}
+                {% endif %}
+        {% endwith %}
+
+        </form>
+
+      </div>
+
+      <div class="modal-footer p-2">
+        <button type="button" class="btn btn-secondary flex-fill me-1" data-bs-dismiss="modal">Cancel</button>
+
+        <button type="submit" class="btn btn-primary flex-fill ms-1" form="new-chat-form">Start chat</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+

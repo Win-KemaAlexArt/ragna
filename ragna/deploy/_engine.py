@@ -1,3 +1,4 @@
+import functools
 import secrets
 import uuid
 from collections.abc import AsyncIterator, Collection
@@ -95,6 +96,7 @@ class Engine:
             json_schema["avatar"] = component.avatar()
         return json_schema
 
+    @functools.cache
     def get_components(self) -> schemas.Components:
         return schemas.Components(
             documents=sorted(self._config.document.supported_suffixes()),
@@ -176,16 +178,13 @@ class Engine:
         self,
         *,
         user: str,
-        # FIXME: make this a dictionary input
-        ids_and_streams: list[tuple[uuid.UUID, AsyncIterator[bytes]]],
+        streams: dict[uuid.UUID, AsyncIterator[bytes]],
     ) -> None:
         if not self.supports_store_documents:
             raise RagnaException(
                 "Ragna configuration does not support local upload",
                 http_status_code=http_status_code.HTTP_400_BAD_REQUEST,
             )
-
-        streams = dict(ids_and_streams)
 
         documents = self.get_documents(user=user, ids=streams.keys())
 
@@ -256,25 +255,21 @@ class Engine:
 
     async def answer_stream(
         self, *, user: str, chat_id: uuid.UUID, prompt: str
-    ) -> AsyncIterator[schemas.Message]:
+    ) -> tuple[schemas.Message, AsyncIterator[schemas.Message]]:
         core_chat = self._to_core.chat(self.get_chat(user=user, id=chat_id), user=user)
-        core_message = await core_chat.answer(prompt, stream=True)
+        core_answer = await core_chat.answer(prompt, stream=True)
+        core_prompt = core_chat._messages[-2]
 
-        content_stream = aiter(core_message)
-        content_chunk = await anext(content_stream)
-        message = self._to_schema.message(core_message, content_override=content_chunk)
-        yield message
+        async def answer_stream() -> AsyncIterator[schemas.Message]:
+            async for chunk in core_answer:
+                yield self._to_schema.message(core_answer, content_override=chunk)
 
-        # Avoid sending the sources multiple times
-        message_chunk = message.model_copy(update={"sources": None})
-        async for content_chunk in content_stream:
-            message_chunk.content = content_chunk
-            yield message_chunk
+            with self._database.get_session() as session:
+                self._database.update_chat(
+                    session, chat=self._to_schema.chat(core_chat), user=user
+                )
 
-        with self._database.get_session() as session:
-            self._database.update_chat(
-                session, chat=self._to_schema.chat(core_chat), user=user
-            )
+        return self._to_schema.message(core_prompt), answer_stream()
 
     def delete_chat(self, *, user: str, id: uuid.UUID) -> None:
         with self._database.get_session() as session:

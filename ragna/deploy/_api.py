@@ -36,10 +36,10 @@ def make_router(engine: Engine) -> APIRouter:
 
         await engine.store_documents(
             user=user.name,
-            ids_and_streams=[
-                (uuid.UUID(document.filename), make_content_stream(document))
+            streams={
+                uuid.UUID(document.filename): make_content_stream(document)
                 for document in documents
-            ],
+            },
         )
 
     @router.get("/documents")
@@ -108,7 +108,9 @@ def make_router(engine: Engine) -> APIRouter:
         prompt: Annotated[str, Body(..., embed=True)],
         stream: Annotated[bool, Body(..., embed=True)] = False,
     ) -> schemas.Message:
-        message_stream = engine.answer_stream(user=user.name, chat_id=id, prompt=prompt)
+        _, message_stream = engine.answer_stream(
+            user=user.name, chat_id=id, prompt=prompt
+        )
         answer = await anext(message_stream)
 
         if not stream:
@@ -119,6 +121,8 @@ def make_router(engine: Engine) -> APIRouter:
         async def message_chunks() -> AsyncIterator[schemas.Message]:
             yield answer
             async for chunk in message_stream:
+                # # Avoid sending the sources multiple times to save bandwidth
+                chunk.sources = []
                 yield chunk
 
         async def to_jsonl(

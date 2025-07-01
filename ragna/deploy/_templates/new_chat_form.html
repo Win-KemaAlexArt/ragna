@@ -1,0 +1,29 @@
+<div class="mb-3">
+            <label for="input-chat-name" class="form-label">Name</label>
+            <input type="text" class="form-control" id="input-chat-name" name="name" value="{{ name }}" placeholder="Chat name">
+          </div>
+
+          <div class="mb-3">
+            <label for="input-chat-source-storage" class="form-label">Source Storage</label>
+            <select class="form-select" id="input-chat-source-storage" name="source_storage">
+                <option selected disabled>Select a source storage...</option>
+                {% for source_storage in source_storages %}
+                <option value="{{ source_storage }}">{{ source_storage }}</option>
+                {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="input-chat-assistant" class="form-label">Assistant</label>
+            <select class="form-select" id="input-chat-assistant" name="assistant">
+              <option selected disabled>Select an assistant...</option>
+                {% for assistant in assistants %}
+                <option value="{{ assistant }}">{{ assistant }}</option>
+                {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label for="input-chat-documents" class="form-label">Documents</label>
+            <input class="form-control" type="file" id="input-chat-documents" name="documents" multiple accept={{ accepted_documents | join(",") }}>
+          </div>

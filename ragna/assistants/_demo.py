@@ -80,3 +80,18 @@ class RagnaDemoAssistant(Assistant):
     @classmethod
     def avatar(cls) -> str:
         return "imgs/ragna_logo.svg"
+
+
+class DemoStreamingAssistant(RagnaDemoAssistant):
+    @classmethod
+    def display_name(cls) -> str:
+        return "Ragna/DemoStreamingAssistant"
+
+    def answer(self, messages):
+        import random
+        import time
+
+        content = next(super().answer(messages))
+        for chunk in content.split(" "):
+            time.sleep(random.random() * 0.2 * 7)
+            yield f"{chunk} "

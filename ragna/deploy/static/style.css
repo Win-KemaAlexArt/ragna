@@ -1,0 +1,78 @@
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+/* This new class handles the scrolling behavior */
+.sidebar-scrollable-area {
+  overflow-y: auto;
+  /* This is critical. It allows the flex item to shrink below its
+     content's intrinsic size, which is what enables scrolling. */
+  min-height: 0;
+}
+
+/* FIXME this needs to be applied */
+.list-group-sidebar .list-group-item {
+  /* Remove all borders to start with a clean slate */
+  border: none;
+  /* Remove rounded corners */
+  border-radius: 0 var(--bs-list-group-border-radius) var(--bs-list-group-border-radius)
+    0;
+}
+
+/* --- ADDRESSES REQUIREMENT #2 (and improves the original rule) --- */
+/* Custom styles for the active item in the sidebar list */
+.sidebar .list-group .list-group-item.active {
+  /* Use an inset box-shadow instead of a border. This does NOT affect */
+  /* the element's box model, so the text content will not shift. */
+  box-shadow: inset 4px 0 0 0 var(--bs-primary);
+
+  /* The rest of the styling remains */
+  background-color: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+
+  /* Explicitly set border to none to remove any default border */
+  border: none;
+}
+
+/* Optional but recommended: Custom hover state for inactive items */
+.sidebar .list-group .list-group-item-action:not(.active):hover {
+  background-color: var(--bs-secondary-bg);
+}
+
+.main-content-column {
+  /* Mobile-first: Full width by default */
+  width: 100%;
+}
+
+/* For screens 'lg' (992px) and wider */
+@media (min-width: 1400px) {
+  .main-content-column {
+    /* Fixed width on large screens as requested */
+    width: 1120px;
+    /* Prevent this column from shrinking if the window gets very narrow */
+    flex-shrink: 0;
+  }
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  object-fit: cover; /* Prevents the image from being stretched */
+  flex-shrink: 0; /* Prevents the avatar from shrinking */
+}
+
+/* Styling for the message content box */
+.message-content {
+  /* Set a max-width. The box will grow up to this point, then wrap. */
+  /* max-width: 80%; */
+
+  /* Ensures long words or URLs break and wrap correctly */
+  overflow-wrap: break-word;
+}
+
+.btn-ghost {
+  --bs-btn-color: var(--bs-text-muted);
+  --bs-btn-hover-color: var(--bs-body-color);
+  --bs-btn-active-color: var(--bs-body-color);
+}

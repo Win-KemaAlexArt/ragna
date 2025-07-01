@@ -1,0 +1,41 @@
+<div class="list-group list-group-sidebar" hx-swap-oob="true">
+    {% for chat in chat_selection.chats %}
+    {% set active = chat.id == chat_selection.active.id %}
+    <button id="{{ chat.id }}" hx-get="/htmx/chat/{{ chat.id | string }}" hx-swap="none" class="list-group-item list-group-item-action {{ "active" if active }}" {{ 'aria-current="true"' if active }}>
+        {{ chat.name }}
+      </button>
+    {% endfor %}
+</div>
+
+<script>
+    const chatListContainer = document.querySelector('.sidebar-scrollable-area');
+
+// Use event delegation to handle clicks on chat items
+if (chatListContainer) {
+  chatListContainer.addEventListener('click', (event) => {
+    // Find the button that was actually clicked
+    const clickedItem = event.target.closest('.list-group-item');
+
+    // If the click wasn't on a button, do nothing
+    if (!clickedItem) return;
+
+    // Find the currently active item in the list
+    const currentActive = chatListContainer.querySelector('.list-group-item.active');
+
+    // Remove the 'active' class from the old item, if it exists
+    if (currentActive) {
+      currentActive.classList.remove('active');
+    }
+
+    // Add the 'active' class to the newly clicked item
+    clickedItem.classList.add('active');
+
+    // --- HOOK FOR YOU ---
+    // This is where you'll add your logic to swap the main content
+    const chatId = clickedItem.dataset.chatId;
+    console.log(`Switching main content to chat with ID: ${chatId}`);
+    // yourContentSwappingFunction(chatId);
+  });
+}
+
+</script>

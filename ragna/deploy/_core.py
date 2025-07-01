@@ -8,9 +8,7 @@ from pathlib import Path
 from typing import cast
 
 import httpx
-import panel.io.fastapi
 from fastapi import FastAPI, Request, status
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -22,8 +20,8 @@ from ._api import make_router as make_api_router
 from ._auth import UserDependency
 from ._config import Config
 from ._engine import Engine
-from ._ui import app as make_ui_app
-from ._utils import handle_localhost_origins, redirect, set_redirect_root_path
+from ._htmx import make_router as make_htmx_router
+from ._utils import redirect, set_redirect_root_path
 
 
 def make_app(
@@ -77,13 +75,14 @@ def make_app(
 
     app = FastAPI(title="Ragna", version=ragna.__version__, lifespan=lifespan)
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=handle_localhost_origins(config.origins),
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # FIXME: try if this works without CORS
+    # app.add_middleware(
+    #     CORSMiddleware,
+    #     allow_origins=handle_localhost_origins(config.origins),
+    #     allow_credentials=True,
+    #     allow_methods=["*"],
+    #     allow_headers=["*"],
+    # )
 
     engine = Engine(
         config=config,
@@ -92,22 +91,19 @@ def make_app(
 
     config.auth._add_to_app(app, config=config, engine=engine, api=api, ui=ui)
 
+    # FIXME: always protect these routes with auth
     if api:
         app.include_router(make_api_router(engine), prefix="/api")
 
     if ui:
-        ui_app = make_ui_app(engine)
-        panel.io.fastapi.add_applications({"/ui": ui_app.index_page}, app=app)
-        for dir in ["css", "imgs"]:
-            app.mount(
-                f"/{dir}",
-                StaticFiles(directory=str(Path(__file__).parent / "_ui" / dir)),
-                name=dir,
-            )
+        app.include_router(make_htmx_router(engine), prefix="/htmx")
+        app.mount(
+            "/static", StaticFiles(directory=str(Path(__file__).parent / "static"))
+        )
 
     @app.get("/", include_in_schema=False)
     async def base_redirect() -> Response:
-        return redirect("/ui" if ui else "/docs")
+        return redirect("/htmx" if ui else "/docs")
 
     @app.get("/health")
     async def health() -> Response:
@@ -121,6 +117,7 @@ def make_app(
     async def user(user: UserDependency) -> schemas.User:
         return user
 
+    # REMOVE THIS or at least deactivate
     @app.get("/api-keys")
     def list_api_keys(user: UserDependency) -> list[schemas.ApiKey]:
         return engine.list_api_keys(user=user.name)
