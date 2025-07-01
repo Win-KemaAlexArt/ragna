@@ -3,7 +3,6 @@
      sse-close="ragna:streamingStop"
      sse-swap="message-system"
      hx-swap="beforeend"
-     class="flex-grow-1 overflow-y-auto p-4"
      hx-swap-oob="true">
     {% for message in message_feed.messages %}
         {% include "message.html" %}
