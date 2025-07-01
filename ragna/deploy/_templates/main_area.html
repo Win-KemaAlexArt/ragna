@@ -1,24 +1,24 @@
 <div class="flex-grow-1 d-flex justify-content-center overflow-auto">
-
-  <!-- Middle Content Column: This is what we'll control -->
-  <div class="main-content-column d-flex flex-column p-0">
-
-  {% with %}
-    {% set message_feed = main_area.message_feed %}
-    {% if message_feed is not none%}
-    {% include "message_feed.html" %}
-    {% endif %}
-    {% endwith %}
+    <div class="main-content-column d-flex flex-column p-0">
+        {% with %}
+            {% set message_feed = main_area.message_feed %}
+            {% if message_feed is not none %}
+                {% include "message_feed.html" %}
+            {% endif %}
+        {% endwith %}
     </div>
-
-    <!-- 2. Sticky Footer Form -->
     <div class="p-3">
-      <form class="d-flex align-items-center gap-2">
-        <input type="text" class="form-control form-control-lg flex-grow-1" name="prompt" placeholder="Ask a question">
-        <button type="submit" class="btn btn-primary flex-shrink-0" style="width: 46px; height: 46px;">
-          <i class="bi bi-send fs-5"></i>
-        </button>
-      </form>
+        <form class="d-flex align-items-center gap-2">
+            <input type="text"
+                   class="form-control form-control-lg flex-grow-1"
+                   name="prompt"
+                   placeholder="Ask a question">
+            <button type="submit"
+                    class="btn btn-primary flex-shrink-0"
+                    style="width: 46px;
+                           height: 46px">
+                <i class="bi bi-send fs-5"></i>
+            </button>
+        </form>
     </div>
-
-  </div>
+</div>

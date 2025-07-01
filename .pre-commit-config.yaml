@@ -13,8 +13,12 @@ repos:
           - markdown
           - toml
           - yaml
-          - javascript
           - css
+  - repo: https://github.com/djlint/djlint
+    rev: v1.36.4
+    hooks:
+      - id: djlint-reformat-jinja
+        types_or: [html]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.1
     hooks:

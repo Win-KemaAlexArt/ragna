@@ -225,6 +225,12 @@ ignore = [
 # blocking code in async tests is not an issue
 "tests/**/*.py" = ["ASYNC101"]
 
+[tool.djlint]
+quiet = true
+format_css = true
+format_js = true
+format_attribute_template_tags = true
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra --tb=short --asyncio-mode=auto --ignore tests/deploy/ui"

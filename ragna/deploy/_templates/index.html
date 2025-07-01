@@ -1,63 +1,65 @@
-{% extends "base.html" %} {% block content %}
-{% include "left_sidebar.html" %}
-{% include "main_area.html" %}
+{% extends "base.html" %}
+{% block content %}
+    {% include "left_sidebar.html" %}
+    {% include "main_area.html" %}
+    <script>
+        function initializeTooltips() {
+            // Find all elements that should be tooltips but haven't been initialized yet
+            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]:not([data-tooltip-initialized])');
 
-<script>
-function initializeTooltips() {
-  // Find all elements that should be tooltips but haven't been initialized yet
-  const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]:not([data-tooltip-initialized])');
-
-  tooltipTriggerList.forEach(tooltipTriggerEl => {
-    new bootstrap.Tooltip(tooltipTriggerEl);
-    // Mark the element with a custom attribute so we don't initialize it again
-    tooltipTriggerEl.setAttribute('data-tooltip-initialized', 'true');
-  });
-}
-
-// Run the tooltip initializer on initial page load
-document.addEventListener('DOMContentLoaded', initializeTooltips);
-
-// And run it again whenever your external system says new content has arrived
-document.addEventListener('ragna:streamingStop', initializeTooltips);
-
-
-// --- 2. Copy Functionality (using Event Delegation) ---
-
-document.addEventListener('click', event => {
-  // Check if a copy button or its child (like the <i> or <span>) was clicked
-  const copyButton = event.target.closest('.btn-copy');
-
-  // If the click was not on a copy button, do nothing
-  if (!copyButton) {
-    return;
-  }
-
-  // --- The rest of the logic is the same, but uses 'copyButton' ---
-  const messageContent = copyButton.closest('.message-content');
-  if (!messageContent) return;
-
-  const textToCopy = messageContent.querySelector('p')?.innerText;
-  if (!textToCopy) return;
-
-  navigator.clipboard.writeText(textToCopy).then(() => {
-    const tooltip = bootstrap.Tooltip.getInstance(copyButton);
-    // Check if tooltip instance exists before trying to use it
-    if (tooltip) {
-      const originalTitle = copyButton.getAttribute('data-bs-title');
-      tooltip.setContent({ '.tooltip-inner': 'Copied!' });
-
-      setTimeout(() => {
-        tooltip.setContent({ '.tooltip-inner': originalTitle });
-        if (!copyButton.matches(':hover')) {
-          tooltip.hide();
+            tooltipTriggerList.forEach(tooltipTriggerEl => {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+                // Mark the element with a custom attribute so we don't initialize it again
+                tooltipTriggerEl.setAttribute('data-tooltip-initialized', 'true');
+            });
         }
-      }, 1000);
-    }
-  }).catch(err => {
-    console.error('Failed to copy text: ', err);
-  });
-});
 
-</script>
+        // Run the tooltip initializer on initial page load
+        document.addEventListener('DOMContentLoaded', initializeTooltips);
 
+        // And run it again whenever your external system says new content has arrived
+        document.addEventListener('ragna:streamingStop', initializeTooltips);
+
+
+        // --- 2. Copy Functionality (using Event Delegation) ---
+
+        document.addEventListener('click', event => {
+            // Check if a copy button or its child (like the <i> or <span>) was clicked
+            const copyButton = event.target.closest('.btn-copy');
+
+            // If the click was not on a copy button, do nothing
+            if (!copyButton) {
+                return;
+            }
+
+            // --- The rest of the logic is the same, but uses 'copyButton' ---
+            const messageContent = copyButton.closest('.message-content');
+            if (!messageContent) return;
+
+            const textToCopy = messageContent.querySelector('p')?.innerText;
+            if (!textToCopy) return;
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const tooltip = bootstrap.Tooltip.getInstance(copyButton);
+                // Check if tooltip instance exists before trying to use it
+                if (tooltip) {
+                    const originalTitle = copyButton.getAttribute('data-bs-title');
+                    tooltip.setContent({
+                        '.tooltip-inner': 'Copied!'
+                    });
+
+                    setTimeout(() => {
+                        tooltip.setContent({
+                            '.tooltip-inner': originalTitle
+                        });
+                        if (!copyButton.matches(':hover')) {
+                            tooltip.hide();
+                        }
+                    }, 1000);
+                }
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        });
+    </script>
 {% endblock %}
