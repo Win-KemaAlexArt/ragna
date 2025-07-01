@@ -79,15 +79,26 @@ class Message(_TemplateBase):
 
     id: str | None = None
     role: Literal["system", "user", "assistant"]
+    avatar: str
     content: str
     replace_event_id: str | None = None
     stream_event_id: str | None = None
 
+    @pydantic.computed_field
+    @functools.cached_property
+    def interaction_enabled(self) -> bool:
+        return (
+            self.role == "assistant"
+            and self.replace_event_id is None
+            and self.stream_event_id is None
+        )
+
     @classmethod
-    def from_schema(cls, message: schemas.Message) -> Self:
+    def from_schema(cls, message: schemas.Message, *, avatar: str) -> Self:
         return cls(
             id=str(message.id),
             role=message.role.value,
+            avatar=avatar,
             content=message.content,
         )
 

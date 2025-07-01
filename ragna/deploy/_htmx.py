@@ -1,3 +1,4 @@
+import functools
 import json
 import uuid
 from collections.abc import AsyncIterator
@@ -10,6 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Form, Query, UploadFile
 from fastapi.responses import HTMLResponse
 
 from ragna._utils import as_awaitable
+from ragna.core import MessageRole
 
 from . import _schemas as schemas
 from . import _templates as templates
@@ -43,11 +45,32 @@ def generate_key(*parts: Any, quote_fn=quote_colon):
 def make_router(engine: Engine) -> APIRouter:
     router = APIRouter(default_response_class=HTMLResponse)
 
-    def _refresh_chats(
-        user: str,
+    stream_handler = RedisStreamHandler.for_type(ServerSentEvent)
+    kvstore = RedisKeyValueStore()
+
+    @functools.lru_cache
+    def _get_assistant_avatar(assistant: str) -> str:
+        return next(
+            a["avatar"]
+            for a in engine.get_components().assistant
+            if a["title"] == assistant
+        )
+
+    def get_avatar(*, role: MessageRole, user: schemas.User, assistant: str) -> str:
+        match role:
+            case MessageRole.SYSTEM:
+                return "/static/ragna_logo.svg"
+            case MessageRole.USER:
+                # FIXME: do better
+                return user.name[0].upper()
+            case MessageRole.ASSISTANT:
+                return _get_assistant_avatar(assistant)
+
+    def refresh_chats(
+        user: schemas.User,
     ) -> tuple[templates.ChatSelection, templates.MessageFeed | None]:
         # FIXME: sort
-        chats = engine.get_chats(user=user)
+        chats = engine.get_chats(user=user.name)
         active_chat = chats[0] if chats else None
 
         return templates.ChatSelection(
@@ -56,7 +79,13 @@ def make_router(engine: Engine) -> APIRouter:
         ), (
             templates.MessageFeed(
                 messages=[
-                    templates.Message.from_schema(m) for m in active_chat.messages
+                    templates.Message.from_schema(
+                        m,
+                        avatar=get_avatar(
+                            role=m.role, user=user, assistant=active_chat.assistant
+                        ),
+                    )
+                    for m in active_chat.messages
                 ]
             )
             if active_chat
@@ -65,7 +94,7 @@ def make_router(engine: Engine) -> APIRouter:
 
     @router.get("")
     def index(user: UserDependency) -> str:
-        chat_selection, message_feed = _refresh_chats(user.name)
+        chat_selection, message_feed = refresh_chats(user)
         return templates.Index(
             left_sidebar=templates.LeftSidebar(
                 new_chat_form=None, chat_selection=chat_selection
@@ -135,20 +164,10 @@ def make_router(engine: Engine) -> APIRouter:
         )
         await engine.prepare_chat(user=user.name, id=chat.id)
 
-        return templates.Response(*_refresh_chats(user.name))
-
-    @router.get("/foo/{data}")
-    async def foo(data: str):
-        print(data)
-        return
-
-    stream_handler = RedisStreamHandler.for_type(ServerSentEvent)
-    kvstore = RedisKeyValueStore()
-
-    CHAT_ID = None
+        return templates.Response(*refresh_chats(user))
 
     class ChatAnswerFormData(pydantic.BaseModel):
-        chat_id: uuid.UUID = pydantic.Field(default_factory=lambda: CHAT_ID)
+        chat_id: uuid.UUID
         prompt: str
 
     @router.post("/chat/answer")
@@ -157,38 +176,6 @@ def make_router(engine: Engine) -> APIRouter:
         user: UserDependency,
         form_data: Annotated[ChatAnswerFormData, Form()],
     ):
-        # ########################################
-        nonlocal CHAT_ID
-        if CHAT_ID is None:
-            drs = engine.register_documents(
-                user=user.name,
-                document_registrations=[
-                    schemas.DocumentRegistration(name="dummy_document.txt")
-                ],
-            )
-
-            async def dummy_content():
-                yield b"dummy content"
-
-            await engine.store_documents(
-                user=user.name, ids_and_streams=[(drs[0].id, dummy_content())]
-            )
-            chat = engine.create_chat(
-                user=user.name,
-                chat_creation=schemas.ChatCreation(
-                    name="dummy_chat",
-                    input=[drs[0].id],
-                    source_storage="Ragna/DemoSourceStorage",
-                    assistant="Ragna/DemoStreamingAssistant",
-                ),
-            )
-
-            CHAT_ID = form_data.chat_id = chat.id
-
-            await engine.prepare_chat(user=user.name, id=chat.id)
-
-        # ########################################
-
         stream_id = str(uuid.uuid4())
         replace_event_id_user = str(uuid.uuid4())
         replace_event_id_assistant = str(uuid.uuid4())
@@ -251,7 +238,8 @@ def make_router(engine: Engine) -> APIRouter:
                 )
                 contents.append(chunk.content)
 
-            # 5. Replace the assistant message to set its ID and prevent any further SSE swap
+            # 5. Replace the assistant message to set its ID, enable the interactive elements, and prevent any further
+            #    SSE swap
             await as_awaitable(
                 stream_handler.add,
                 key,
@@ -273,12 +261,13 @@ def make_router(engine: Engine) -> APIRouter:
             )
 
         # 2. - 6.
-        background_tasks.add_task(stream_answer)
+        # background_tasks.add_task(stream_answer)
         # 1.
         return templates.Response(
             templates.Message(
                 role="user",
                 content=form_data.prompt,
+                avatar=get_avatar(),
                 replace_event_id=replace_event_id_user,
             ),
             templates.Message(
