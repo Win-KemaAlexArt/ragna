@@ -40,9 +40,12 @@
                     <h1 class="modal-title fs-5" id="newChatModalLabel">Start a new chat</h1>
                 </div>
                 <div class="modal-body">
-                    <form id="new-chat-form" hx-post="/htmx/chat" hx-swap="none">
+                    <form id="new-chat-form"
+                          hx-post="/htmx/chat"
+                          hx-encoding='multipart/form-data'
+                          hx-swap="none">
                         {% with %}
-                            {% set new_chat_form = main_area.new_chat_form %}
+                            {% set new_chat_form = left_sidebar.new_chat_form %}
                             {% if new_chat_form is not none %}
                                 {% include "new_chat_form.html" %}
                             {% endif %}
@@ -55,7 +58,8 @@
                             data-bs-dismiss="modal">Cancel</button>
                     <button type="submit"
                             class="btn btn-primary flex-fill ms-1"
-                            form="new-chat-form">Start chat</button>
+                            form="new-chat-form"
+                            data-bs-dismiss="modal">Start chat</button>
                 </div>
             </div>
         </div>

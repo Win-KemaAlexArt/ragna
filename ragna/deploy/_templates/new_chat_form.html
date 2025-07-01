@@ -4,7 +4,7 @@
            class="form-control"
            id="input-chat-name"
            name="name"
-           value="{{ name }}"
+           value="{{ new_chat_form.name }}"
            placeholder="Chat name">
 </div>
 <div class="mb-3">
@@ -13,7 +13,7 @@
             id="input-chat-source-storage"
             name="source_storage">
         <option selected disabled>Select a source storage...</option>
-        {% for source_storage in source_storages %}
+        {% for source_storage in new_chat_form.source_storages %}
             <option value="{{ source_storage }}">{{ source_storage }}</option>
         {% endfor %}
     </select>
@@ -22,7 +22,7 @@
     <label for="input-chat-assistant" class="form-label">Assistant</label>
     <select class="form-select" id="input-chat-assistant" name="assistant">
         <option selected disabled>Select an assistant...</option>
-        {% for assistant in assistants %}<option value="{{ assistant }}">{{ assistant }}</option>{% endfor %}
+        {% for assistant in new_chat_form.assistants %}<option value="{{ assistant }}">{{ assistant }}</option>{% endfor %}
     </select>
 </div>
 <div>
@@ -32,5 +32,5 @@
            id="input-chat-documents"
            name="documents"
            multiple
-           accept="{{ accepted_documents | join(',') }}">
+           accept="{{ new_chat_form.accepted_documents | join(',') }}">
 </div>

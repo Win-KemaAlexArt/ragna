@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-    {% include "left_sidebar.html" %}
-    {% include "main_area.html" %}
+    {% with %}
+        {% set left_sidebar = index.left_sidebar %}
+        {% include "left_sidebar.html" %}
+    {% endwith %}
+    {% with %}
+        {% set main_area = index.main_area %}
+        {% include "main_area.html" %}
+    {% endwith %}
     <script>
         function initializeTooltips() {
             // Find all elements that should be tooltips but haven't been initialized yet

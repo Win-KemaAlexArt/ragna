@@ -1,4 +1,6 @@
-<div class="list-group list-group-sidebar" hx-swap-oob="true">
+<div id="chat-selection"
+     class="list-group list-group-sidebar"
+     hx-swap-oob="true">
     {% for chat in chat_selection.chats %}
         {% set active = chat.id == chat_selection.active.id %}
         <button id="{{ chat.id }}"

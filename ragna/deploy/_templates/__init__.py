@@ -24,8 +24,14 @@ class _TemplateBase(pydantic.BaseModel):
     def _template(self) -> jinja2.Template:
         return ENVIRONMENT.get_template(self.TEMPLATE_FILE)
 
+    @functools.cached_property
+    def _context_name(self) -> str:
+        return Path(self.TEMPLATE_FILE).stem
+
     def render(self) -> str:
-        return self._template.render(**self.model_dump(mode="json"))
+        return self._template.render(
+            **{self._context_name: self.model_dump(mode="json")}
+        )
 
 
 class Response(_ResponseBase):

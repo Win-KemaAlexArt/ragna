@@ -87,7 +87,7 @@ def make_router(engine: Engine) -> APIRouter:
         model_config = pydantic.ConfigDict(extra="allow")
 
         name: str
-        documents: list[UploadFile] = None
+        documents: list[UploadFile]
         source_storage: str
         assistant: str
 
