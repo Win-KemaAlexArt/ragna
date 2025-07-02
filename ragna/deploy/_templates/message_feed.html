@@ -2,8 +2,7 @@
      hx-ext="sse"
      sse-close="ragna:streamingStop"
      sse-swap="message-system"
-     hx-swap="beforeend"
-     hx-swap-oob="true">
+     hx-swap="beforeend">
     {% for message in message_feed.messages %}
         {% include "message.html" %}
     {% endfor %}

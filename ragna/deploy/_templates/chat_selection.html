@@ -5,7 +5,8 @@
         {% set active = chat.id == chat_selection.active.id %}
         <button id="{{ chat.id }}"
                 hx-get="/htmx/chat/{{ chat.id | string }}"
-                hx-swap="none"
+                hx-target="#message-feed"
+                hx-select="#message-feed"
                 class="list-group-item list-group-item-action {{ "active" if active }}"
                 {{ 'aria-current="true"' if active }}>
             {{ chat.name }}

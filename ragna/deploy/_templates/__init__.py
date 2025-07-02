@@ -119,7 +119,7 @@ class LeftSidebar(_TemplateBase):
 class MainArea(_TemplateBase):
     TEMPLATE_FILE = "main_area.html"
 
-    message_feed: MessageFeed | None
+    message_feed: MessageFeed
 
 
 class Index(_TemplateBase):

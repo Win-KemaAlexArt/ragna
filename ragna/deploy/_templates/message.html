@@ -1,9 +1,18 @@
-<div class="chat-message d-flex gap-3 mb-4 align-items-start">
+<div class="chat-message message message-{{ message.role }} d-flex gap-3 mb-4 align-items-start"
+     {%- if id is not none %}id="{{ id }}"{%- endif %}
+     {%- if message.replace_event_id is not none %}
+     sse-swap="{{ message.replace_event_id }}"
+     hx-swap="outerHTML"
+     {%- endif %}>
     <img src="{{ message.avatar }}"
          alt="{{ message.role }} avatar"
          class="avatar rounded-circle">
     <div class="message-content border p-3 rounded-3">
-        <p class="mb-0">{{ message.content }}</p>
+        <p class="mb-0"
+           {%- if message.stream_event_id is not none %}
+           sse-swap="{{ message.stream_event_id }}"
+           hx-swap="beforeend"
+           {%- endif %}>{{ message.content }}</p>
         {% if message.interaction_enabled %}
             <div class="d-flex align-items-center gap-3 mt-3 pt-3">
                 <button type="button"

@@ -2,9 +2,11 @@ import functools
 import json
 import uuid
 from collections.abc import AsyncIterator
+from datetime import datetime
 from typing import Annotated, Any, cast
 from urllib.parse import quote
 
+import httpx
 import pydantic
 import sse_starlette
 from fastapi import APIRouter, BackgroundTasks, Form, Query, UploadFile
@@ -52,26 +54,40 @@ def make_router(engine: Engine) -> APIRouter:
     def _get_assistant_avatar(assistant: str) -> str:
         return next(
             a["avatar"]
-            for a in engine.get_components().assistant
+            for a in engine.get_components().assistants
             if a["title"] == assistant
         )
 
-    def get_avatar(*, role: MessageRole, user: schemas.User, assistant: str) -> str:
+    def get_avatar(
+        *,
+        role: MessageRole,
+        user: schemas.User | None = None,
+        assistant: str | None = None,
+    ) -> str:
         match role:
             case MessageRole.SYSTEM:
                 return "/static/ragna_logo.svg"
             case MessageRole.USER:
-                # FIXME: do better
-                return user.name[0].upper()
+                assert user is not None
+                # FIXME: implement this ourselves
+                return str(
+                    httpx.URL("https://ui-avatars.com/api/", params={"name": user.name})
+                )
             case MessageRole.ASSISTANT:
+                assert assistant is not None
                 return _get_assistant_avatar(assistant)
 
     def refresh_chats(
-        user: schemas.User,
-    ) -> tuple[templates.ChatSelection, templates.MessageFeed | None]:
+        user: schemas.User, active_chat_id: uuid.UUID | None = None
+    ) -> tuple[templates.ChatSelection, templates.MessageFeed]:
         # FIXME: sort
         chats = engine.get_chats(user=user.name)
-        active_chat = chats[0] if chats else None
+        if not chats:
+            active_chat = None
+        elif active_chat_id is None:
+            active_chat = chats[0]
+        else:
+            active_chat = next(c for c in chats if c.id == active_chat_id)
 
         return templates.ChatSelection(
             chats=[templates.Chat.from_schema(c) for c in chats],
@@ -87,9 +103,9 @@ def make_router(engine: Engine) -> APIRouter:
                     )
                     for m in active_chat.messages
                 ]
+                if active_chat
+                else []
             )
-            if active_chat
-            else None
         )
 
     @router.get("")
@@ -106,7 +122,7 @@ def make_router(engine: Engine) -> APIRouter:
     def new_chat_form() -> str:
         components = engine.get_components()
         return templates.NewChatForm(
-            name="dynamic name",
+            name=f"Chat {datetime.now():%m/%d/%Y %I:%M %p}",
             source_storages=[c["title"] for c in components.source_storages],
             assistants=[c["title"] for c in components.assistants],
             accepted_documents=components.documents,
@@ -162,20 +178,31 @@ def make_router(engine: Engine) -> APIRouter:
                 params=cast(dict[str, Any], form_data.model_extra),
             ),
         )
+
+        # FIXME: send a response here and stream the preparation message
         await engine.prepare_chat(user=user.name, id=chat.id)
 
         return templates.Response(*refresh_chats(user))
 
-    class ChatAnswerFormData(pydantic.BaseModel):
+    @router.get("/chat/{id}")
+    def get_chat(user: UserDependency, id: uuid.UUID) -> templates.Response:
+        return templates.Response(*refresh_chats(user=user, active_chat_id=id))
+
+    class AnswerFormData(pydantic.BaseModel):
         chat_id: uuid.UUID
         prompt: str
 
-    @router.post("/chat/answer")
+    @router.post("/answer")
     async def answer(
         background_tasks: BackgroundTasks,
         user: UserDependency,
-        form_data: Annotated[ChatAnswerFormData, Form()],
+        form_data: Annotated[AnswerFormData, Form()],
     ):
+        avatar_user = get_avatar(role=MessageRole.USER, user=user)
+        # FIXME:
+        avatar_assistant = get_avatar(
+            role=MessageRole.ASSISTANT, assistant="Ragna/DemoAssistant"
+        )
         stream_id = str(uuid.uuid4())
         replace_event_id_user = str(uuid.uuid4())
         replace_event_id_assistant = str(uuid.uuid4())
@@ -192,6 +219,7 @@ def make_router(engine: Engine) -> APIRouter:
                 role="user",
                 content=user_message.content,
                 id=str(user_message.id),
+                avatar=avatar_user,
             ).render()
             await as_awaitable(
                 stream_handler.add,
@@ -220,6 +248,7 @@ def make_router(engine: Engine) -> APIRouter:
                     data=templates.Message(
                         role="assistant",
                         content=chunk.content,
+                        avatar=avatar_assistant,
                         replace_event_id=replace_event_id_assistant,
                         stream_event_id=stream_event_id,
                     ).render(),
@@ -248,6 +277,7 @@ def make_router(engine: Engine) -> APIRouter:
                         role="assistant",
                         content="".join(contents),
                         id=str(id),
+                        avatar=avatar_assistant,
                     ).render(),
                     event=replace_event_id_assistant,
                 ),
@@ -261,18 +291,19 @@ def make_router(engine: Engine) -> APIRouter:
             )
 
         # 2. - 6.
-        # background_tasks.add_task(stream_answer)
+        background_tasks.add_task(stream_answer)
         # 1.
         return templates.Response(
             templates.Message(
                 role="user",
                 content=form_data.prompt,
-                avatar=get_avatar(),
+                avatar=avatar_user,
                 replace_event_id=replace_event_id_user,
             ),
             templates.Message(
                 role="assistant",
                 content="LOADING INDICATOR",
+                avatar=avatar_assistant,
                 replace_event_id=replace_event_id_assistant,
             ),
             headers={

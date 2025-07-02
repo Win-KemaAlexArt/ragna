@@ -43,7 +43,9 @@
                     <form id="new-chat-form"
                           hx-post="/htmx/chat"
                           hx-encoding='multipart/form-data'
-                          hx-swap="none">
+                          hx-target="#message-feed"
+                          hx-select="#message-feed"
+                          hx-swap="outerHTML">
                         {% with %}
                             {% set new_chat_form = left_sidebar.new_chat_form %}
                             {% if new_chat_form is not none %}

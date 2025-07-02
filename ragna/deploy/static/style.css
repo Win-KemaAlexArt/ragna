@@ -11,7 +11,6 @@
   min-height: 0;
 }
 
-/* FIXME this needs to be applied */
 .list-group-sidebar .list-group-item {
   /* Remove all borders to start with a clean slate */
   border: none;
