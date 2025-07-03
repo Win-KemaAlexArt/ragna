@@ -114,6 +114,8 @@ class LeftSidebar(_TemplateBase):
 
     new_chat_form: NewChatForm | None
     chat_selection: ChatSelection
+    user: str
+    version: str
 
 
 class MainArea(_TemplateBase):

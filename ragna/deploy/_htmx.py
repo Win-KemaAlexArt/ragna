@@ -12,6 +12,7 @@ import sse_starlette
 from fastapi import APIRouter, BackgroundTasks, Form, Query, UploadFile
 from fastapi.responses import HTMLResponse
 
+import ragna
 from ragna._utils import as_awaitable
 from ragna.core import MessageRole
 
@@ -19,8 +20,8 @@ from . import _schemas as schemas
 from . import _templates as templates
 from ._auth import UserDependency
 from ._engine import Engine
-from ._key_value_store import RedisKeyValueStore
-from ._queue_handler import RedisStreamHandler
+from ._key_value_store import InMemoryKeyValueStore
+from ._queue_handler import InMemoryStreamHandler
 
 
 class ServerSentEvent(pydantic.BaseModel):
@@ -47,8 +48,8 @@ def generate_key(*parts: Any, quote_fn=quote_colon):
 def make_router(engine: Engine) -> APIRouter:
     router = APIRouter(default_response_class=HTMLResponse)
 
-    stream_handler = RedisStreamHandler.for_type(ServerSentEvent)
-    kvstore = RedisKeyValueStore()
+    stream_handler = InMemoryStreamHandler.for_type(ServerSentEvent)
+    kvstore = InMemoryKeyValueStore()
 
     @functools.lru_cache
     def _get_assistant_avatar(assistant: str) -> str:
@@ -66,7 +67,7 @@ def make_router(engine: Engine) -> APIRouter:
     ) -> str:
         match role:
             case MessageRole.SYSTEM:
-                return "/static/ragna_logo.svg"
+                return "/static/logo.svg"
             case MessageRole.USER:
                 assert user is not None
                 # FIXME: implement this ourselves
@@ -78,10 +79,15 @@ def make_router(engine: Engine) -> APIRouter:
                 return _get_assistant_avatar(assistant)
 
     def refresh_chats(
-        user: schemas.User, active_chat_id: uuid.UUID | None = None
+        *, user: schemas.User, active_chat_id: uuid.UUID | None = None
     ) -> tuple[templates.ChatSelection, templates.MessageFeed]:
-        # FIXME: sort
         chats = engine.get_chats(user=user.name)
+        chats.sort(
+            key=lambda chat: (
+                chat.messages[-1].timestamp if chat.messages else chat.created_at
+            ),
+            reverse=True,
+        )
         if not chats:
             active_chat = None
         elif active_chat_id is None:
@@ -110,10 +116,13 @@ def make_router(engine: Engine) -> APIRouter:
 
     @router.get("")
     def index(user: UserDependency) -> str:
-        chat_selection, message_feed = refresh_chats(user)
+        chat_selection, message_feed = refresh_chats(user=user)
         return templates.Index(
             left_sidebar=templates.LeftSidebar(
-                new_chat_form=None, chat_selection=chat_selection
+                new_chat_form=None,
+                chat_selection=chat_selection,
+                user=user.name,
+                version=ragna.__version__,
             ),
             main_area=templates.MainArea(message_feed=message_feed),
         ).render()
@@ -182,7 +191,7 @@ def make_router(engine: Engine) -> APIRouter:
         # FIXME: send a response here and stream the preparation message
         await engine.prepare_chat(user=user.name, id=chat.id)
 
-        return templates.Response(*refresh_chats(user))
+        return templates.Response(*refresh_chats(user=user, active_chat_id=chat.id))
 
     @router.get("/chat/{id}")
     def get_chat(user: UserDependency, id: uuid.UUID) -> templates.Response:

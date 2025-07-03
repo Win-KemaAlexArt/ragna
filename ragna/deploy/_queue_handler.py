@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import os
 import time
-from typing import Generic, TypeVar
+from collections import defaultdict
+from typing import Generic, TypeVar, cast
 
 import pydantic
-
-from ragna._utils import timeout_after
 
 T = TypeVar("T")
 TModel = TypeVar("TModel", bound=pydantic.BaseModel)
@@ -23,84 +23,83 @@ class StreamHandler(abc.ABC, Generic[TModel]):
 
     @classmethod
     def for_type(cls, model_type: type[TModel]) -> StreamHandler[TModel]:
-        return type(cls.__name__, (cls,), {"MODEL_TYPE": model_type})()
+        cls_for_type = cast(
+            type[StreamHandler[TModel]],
+            type(
+                f"{cls.__name__}[{model_type.__name__}]",
+                (cls,),
+                {"MODEL_TYPE": model_type},
+            ),
+        )
+        return cls_for_type()
 
     @abc.abstractmethod
-    def exists(self, key: str) -> bool: ...
+    async def exists(self, key: str) -> bool: ...
 
     @abc.abstractmethod
-    def add(self, key: str, model: TModel) -> None: ...
+    async def add(self, key: str, model: TModel) -> None: ...
 
     @abc.abstractmethod
-    def read(
-        self, key: str, last_id: str = None, timeout: float = 0.0
+    async def read(
+        self,
+        key: str,
+        *,
+        last_id: str | None = None,
+        timeout: float = 0.0,
     ) -> list[StreamEntry[TModel]]: ...
 
     @abc.abstractmethod
-    def delete(self, key, *, after: float | None = None) -> None: ...
+    async def delete(self, key: str, *, after: float | None = None) -> None: ...
 
 
-# class _InMemoryStream(Generic[T]):
-#     def __init__(self):
-#         self.lock = threading.Lock()
-#         self._stream: list[T] = []
-#
-#     def append(self, entry: T) -> None:
-#         self._stream.append(entry)
-#
-#
-#
-#     def __iter__(self) -> Iterator[T]:
-#         return iter()
+class InMemoryStreamHandler(StreamHandler[TModel]):
+    def __init__(self) -> None:
+        self._streams_and_conditions: defaultdict[
+            str, tuple[list[StreamEntry[TModel]], asyncio.Condition]
+        ] = defaultdict(lambda: ([], asyncio.Condition()))
+        self._timer = time.monotonic
 
+    async def exists(self, key: str) -> bool:
+        return key in self._streams_and_conditions
 
-class InMemoryStreamHandler(StreamHandler, Generic[TModel]):
-    def __init__(self):
-        self._streams: dict[str, list[StreamEntry[TModel]]] = {}
+    async def add(self, key: str, model: TModel) -> None:
+        stream, condition = self._streams_and_conditions[key]
+        async with condition:
+            stream.append(StreamEntry(id=str(len(stream)), value=model))
+            condition.notify_all()
 
-    def exists(self, key: str) -> bool:
-        return key in self._streams
+    async def read(
+        self,
+        key: str,
+        *,
+        last_id: str | None = None,
+        timeout: float = 0.0,
+    ) -> list[StreamEntry[TModel]]:
+        start_index = int(last_id) + 1 if last_id is not None else 0
+        stream, condition = self._streams_and_conditions[key]
 
-    def add(self, key: str, model: TModel) -> None:
-        entry = StreamEntry(
-            id=str(time.time()),
-            value=self.MODEL_TYPE.model_validate_json(model.model_dump_json()),
-        )
-        self._streams.setdefault(key, []).append(entry)
+        deadline = self._timer() + timeout
+        async with condition:
+            if timeout >= 0.0:
+                while start_index >= len(stream):
+                    try:
+                        await asyncio.wait_for(
+                            condition.wait(), timeout=deadline - self._timer()
+                        )
+                    except asyncio.TimeoutError:
+                        break
 
-    def read(self, key: str, *, last_id: str | None = None, timeout: float = 0.0):
-        stream = self._streams[key]
+            return stream[start_index:]
 
-        @timeout_after(timeout)
-        def wait_for_data():
-            while True:
-                if last_id is None:
-                    entries = stream.copy()
-                else:
-                    entries_iter = iter(stream)
-                    for e in entries_iter:
-                        if e.id == last_id:
-                            break
-                    entries = list(entries_iter)
+    async def delete(self, key: str, *, after: float | None = None) -> None:
+        if after is None:
+            self._delete(key)
+        else:
+            asyncio.get_running_loop().call_later(after, self._delete, key)
 
-                if entries:
-                    print(entries)
-                    return entries
-
-                print("nothing")
-                time.sleep(0.1)
-
-        try:
-            return wait_for_data()
-        except TimeoutError:
-            return []
-
-    def delete(self, key, *, after=None) -> None:
-        # FIXME: implement after
-        if key not in self._streams:
-            return
-
-        del self._streams[key]
+    def _delete(self, key: str) -> None:
+        if key in self._streams_and_conditions:
+            del self._streams_and_conditions[key]
 
 
 class RedisStreamHandler(StreamHandler[TModel]):

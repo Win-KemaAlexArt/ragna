@@ -79,7 +79,7 @@ class RagnaDemoAssistant(Assistant):
 
     @classmethod
     def avatar(cls) -> str:
-        return "/static/ragna_logo.svg"
+        return "/static/logo.svg"
 
 
 class DemoStreamingAssistant(RagnaDemoAssistant):
