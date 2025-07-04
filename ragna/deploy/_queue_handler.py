@@ -4,7 +4,6 @@ import abc
 import asyncio
 import os
 import time
-from collections import defaultdict
 from typing import Generic, TypeVar, cast
 
 import pydantic
@@ -34,13 +33,16 @@ class StreamHandler(abc.ABC, Generic[TModel]):
         return cls_for_type()
 
     @abc.abstractmethod
-    async def exists(self, key: str) -> bool: ...
+    def exists(self, key: str) -> bool: ...
 
     @abc.abstractmethod
-    async def add(self, key: str, model: TModel) -> None: ...
+    def create(self, key: str) -> None: ...
 
     @abc.abstractmethod
-    async def read(
+    def add(self, key: str, model: TModel) -> None: ...
+
+    @abc.abstractmethod
+    def read(
         self,
         key: str,
         *,
@@ -49,18 +51,21 @@ class StreamHandler(abc.ABC, Generic[TModel]):
     ) -> list[StreamEntry[TModel]]: ...
 
     @abc.abstractmethod
-    async def delete(self, key: str, *, after: float | None = None) -> None: ...
+    def delete(self, key: str, *, after: float | None = None) -> None: ...
 
 
 class InMemoryStreamHandler(StreamHandler[TModel]):
     def __init__(self) -> None:
-        self._streams_and_conditions: defaultdict[
+        self._streams_and_conditions: dict[
             str, tuple[list[StreamEntry[TModel]], asyncio.Condition]
-        ] = defaultdict(lambda: ([], asyncio.Condition()))
+        ] = {}
         self._timer = time.monotonic
 
     async def exists(self, key: str) -> bool:
         return key in self._streams_and_conditions
+
+    async def create(self, key: str) -> None:
+        self._streams_and_conditions[key] = [], asyncio.Condition()
 
     async def add(self, key: str, model: TModel) -> None:
         stream, condition = self._streams_and_conditions[key]
@@ -113,6 +118,11 @@ class RedisStreamHandler(StreamHandler[TModel]):
 
     async def exists(self, key: str) -> bool:
         return await self._r.type(key) == b"stream"
+
+    async def create(self, key: str) -> None:
+        # Redis has no support for just creating a stream. Thus, we pretend to add dummy data while capping the length
+        # for this addition at 0
+        await self._r.xadd(key, {"": ""}, maxlen=0)
 
     async def add(self, key: str, data: TModel) -> None:
         await self._r.xadd(key, data.model_dump(mode="json"))

@@ -21,7 +21,7 @@ from . import _templates as templates
 from ._auth import UserDependency
 from ._engine import Engine
 from ._key_value_store import InMemoryKeyValueStore
-from ._queue_handler import InMemoryStreamHandler
+from ._queue_handler import RedisStreamHandler
 
 
 class ServerSentEvent(pydantic.BaseModel):
@@ -48,16 +48,18 @@ def generate_key(*parts: Any, quote_fn=quote_colon):
 def make_router(engine: Engine) -> APIRouter:
     router = APIRouter(default_response_class=HTMLResponse)
 
-    stream_handler = InMemoryStreamHandler.for_type(ServerSentEvent)
+    stream_handler = RedisStreamHandler.for_type(ServerSentEvent)
     kvstore = InMemoryKeyValueStore()
 
     @functools.lru_cache
     def _get_assistant_avatar(assistant: str) -> str:
-        return next(
-            a["avatar"]
-            for a in engine.get_components().assistants
-            if a["title"] == assistant
-        )
+        for a in engine.get_components().assistants:
+            if a["title"] == assistant:
+                return a["avatar"]
+
+        # We are hitting this fallback if a chat was created with an assistant that is no longer present in the current
+        # configuration
+        return "/static/logo.svg"
 
     def get_avatar(
         *,
@@ -213,12 +215,11 @@ def make_router(engine: Engine) -> APIRouter:
             role=MessageRole.ASSISTANT, assistant="Ragna/DemoAssistant"
         )
         stream_id = str(uuid.uuid4())
+        key = generate_key("stream", user.name, stream_id)
         replace_event_id_user = str(uuid.uuid4())
         replace_event_id_assistant = str(uuid.uuid4())
 
         async def stream_answer() -> None:
-            key = generate_key("stream", user.name, stream_id)
-
             user_message, assistant_message_chunks = await engine.answer_stream(
                 user=user.name, chat_id=form_data.chat_id, prompt=form_data.prompt
             )
@@ -300,6 +301,7 @@ def make_router(engine: Engine) -> APIRouter:
             )
 
         # 2. - 6.
+        await as_awaitable(stream_handler.create, key)
         background_tasks.add_task(stream_answer)
         # 1.
         return templates.Response(

@@ -6,25 +6,21 @@
                 {% include "message_feed.html" %}
             {% endwith %}
         </div>
-        <script>
-            document.body.addEventListener("ragna:streamingStart", function(evt) {
-                console.log("starting stream", evt)
-                const messageFeed = document.getElementById("message-feed")
-                messageFeed.setAttribute("sse-connect", evt.detail.value)
-                htmx.process(messageFeed)
-            })
-        </script>
         <div class="p-3">
-            <form class="d-flex align-items-center gap-2"
+            <form id="form-answer"
+                  class="d-flex align-items-center gap-2"
                   hx-post="/htmx/answer"
                   hx-vals="js:{chat_id: document.querySelector('.list-group-sidebar .list-group-item.active').id}"
                   hx-target="#message-feed"
                   hx-swap="beforeend">
-                <input type="text"
+                <input id="input-answer-prompt"
+                       type="text"
                        class="form-control form-control-lg flex-grow-1"
                        name="prompt"
+                       autocomplete="off"
                        placeholder="Ask a question">
-                <button type="submit"
+                <button id="input-answer-submit"
+                        type="submit"
                         class="btn btn-primary flex-shrink-0"
                         style="width: 46px;
                                height: 46px">
@@ -34,3 +30,25 @@
         </div>
     </div>
 </div>
+<script>
+    const answerPrompt = document.getElementById("input-answer-prompt")
+    const answerSubmit = document.getElementById("input-answer-submit")
+    const messageFeed = document.getElementById("message-feed")
+
+    document.getElementById("form-answer").addEventListener("htmx:afterRequest", function(evt) {
+        answerPrompt.value = "";
+        answerSubmit.disabled = true;
+    })
+
+    document.body.addEventListener("ragna:streamingStart", function(evt) {
+        messageFeed.setAttribute("sse-connect", evt.detail.value);
+        htmx.process(messageFeed);
+    })
+
+    document.body.addEventListener('htmx:sseClose', function(evt) {
+        if (evt.detail.type == "message") {
+            // try remove the sse-connect attribute here
+            answerSubmit.disabled = false;
+        }
+    })
+</script>
