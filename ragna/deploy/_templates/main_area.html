@@ -1,6 +1,6 @@
 <div class="flex-grow-1 d-flex justify-content-center overflow-auto">
     <div class="main-content-column d-flex flex-column p-0">
-        <div class="flex-grow-1 overflow-y-auto p-4">
+        <div id="scroll-container" class="flex-grow-1 overflow-y-auto p-4">
             {% with %}
                 {% set message_feed = main_area.message_feed %}
                 {% include "message_feed.html" %}
@@ -31,9 +31,26 @@
     </div>
 </div>
 <script>
+    const scrollContainer = document.getElementById("scroll-container")
+    const messageFeed = document.getElementById("message-feed")
     const answerPrompt = document.getElementById("input-answer-prompt")
     const answerSubmit = document.getElementById("input-answer-submit")
-    const messageFeed = document.getElementById("message-feed")
+
+    function isScrolledToBottom() {
+        return Math.ceil(scrollContainer.scrollTop + scrollContainer.clientHeight) >= scrollContainer.scrollHeight;
+    }
+
+    function maybeScrollToBottom() {
+        if (!manuallyScrolled && !isScrolledToBottom()) {
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+    }
+
+    let manuallyScrolled = false
+
+    scrollContainer.addEventListener('scroll', () => {
+        manuallyScrolled = !isScrolledToBottom()
+    });
 
     document.getElementById("form-answer").addEventListener("htmx:afterRequest", function(evt) {
         answerPrompt.value = "";
@@ -41,13 +58,17 @@
     })
 
     document.body.addEventListener("ragna:streamingStart", function(evt) {
+        maybeScrollToBottom()
+
         messageFeed.setAttribute("sse-connect", evt.detail.value);
         htmx.process(messageFeed);
     })
 
+    document.body.addEventListener('htmx:sseMessage', () => maybeScrollToBottom())
+
     document.body.addEventListener('htmx:sseClose', function(evt) {
         if (evt.detail.type == "message") {
-            // try remove the sse-connect attribute here
+            messageFeed.removeAttribute("sse-connect");
             answerSubmit.disabled = false;
         }
     })
