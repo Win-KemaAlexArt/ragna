@@ -2,6 +2,13 @@ ragna.toml
 ragna/_version.py
 docs/**/ragna.txt
 
+# Allow backup configuration files
+!ragna.toml.backup
+
+# Allow Ragna data directory
+!.ragna/
+!.ragna/**
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

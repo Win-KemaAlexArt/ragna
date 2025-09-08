@@ -1,0 +1,25 @@
+local_root = "C:\\Users\\Олександр\\.cache\\ragna"
+auth = "ragna.deploy.NoAuth"
+key_value_store = "ragna.deploy.InMemoryKeyValueStore"
+document = "ragna.core.LocalDocument"
+source_storages = [
+    "ragna.source_storages.RagnaDemoSourceStorage",
+]
+assistants = [
+    "ragna.assistants.OllamaGemma2B",
+    "ragna.assistants.OllamaLlama2",
+    "ragna.assistants.OllamaLlava",
+    "ragna.assistants.OllamaMistral",
+    "ragna.assistants.OllamaMixtral",
+    "ragna.assistants.OllamaOrcaMini",
+    "ragna.assistants.OllamaPhi2",
+    "ragna.assistants.RagnaDemoAssistant",
+]
+hostname = "127.0.0.1"
+port = 31476
+root_path = ""
+origins = [
+    "http://127.0.0.1:31476",
+]
+session_lifetime = 86400
+database_url = "sqlite:///C:\\Users\\Олександр\\.cache\\ragna/ragna.db"
