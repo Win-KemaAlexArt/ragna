@@ -2,6 +2,9 @@ ragna.toml
 ragna/_version.py
 docs/**/ragna.txt
 
+# Local cache directory
+.ragna_cache/
+
 # Allow backup configuration files
 !ragna.toml.backup
 
